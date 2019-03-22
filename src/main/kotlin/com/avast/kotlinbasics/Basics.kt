@@ -7,6 +7,7 @@ fun main() {
 
     //variables
     var number = 10
+    println(number)
     number = 11
     println(number)
     val constant = 11
@@ -31,6 +32,8 @@ fun main() {
 
     //tuple - deprecated => data classes
     val aaa = "a" to  "b"
+    val map = mapOf(aaa)
+    println(map)
 
     println(account == acc2.copy(email = "Martin"))
 

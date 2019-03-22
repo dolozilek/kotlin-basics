@@ -12,9 +12,25 @@ fun main() {
     val constant = 11
 //    constant = 12 - immutable
 
+
     //data class - default value, copy constructor, nullability
     val account = Account(email = "Martin")
     val acc2 = account.copy(email = "Ondra")
+
+
+    // multiple assignment
+    val (email, password) = account
+    println(email)
+    println(password)
+
+    val array = listOf(account, acc2)
+    for ((e, p) in array) {
+        println(e)
+        println(p)
+    }
+
+    //tuple - deprecated => data classes
+    val aaa = "a" to  "b"
 
     println(account == acc2.copy(email = "Martin"))
 

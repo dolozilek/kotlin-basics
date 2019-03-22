@@ -24,6 +24,7 @@ class HelloController {
 class Routing {
     @Bean
     fun routerHello() = router {
+        // if the last argument is a function => it can be placed outside the parentheses
         GET("/hello") { ServerResponse.ok().body(mapOf("message" to "Hello world").toMono()) }
     }
 

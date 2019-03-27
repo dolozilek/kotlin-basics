@@ -1,6 +1,6 @@
 package com.avast.kotlinbasics
 
-data class Account(val email: String, val password: String = "change me to null")
+data class Account(val email: String, val password: String? = null)
 
 fun main() {
     println("Hello world")
@@ -31,7 +31,7 @@ fun main() {
     }
 
     //tuple - deprecated => data classes
-    val aaa = "a" to  "b"
+    val aaa = "a" to "b"
     val map = mapOf(aaa)
     println(map)
 
@@ -40,14 +40,14 @@ fun main() {
     println(account)
     println(acc2)
     println(Account(email = "Martin", password = "secret"))
-    println(account.password.length)
+    println(account.password!!.length)
 
 
     //functions
     println("function: ${::sayHello}")
     sayHello("Martin")
 
-    val sayHelloFunction = ::sayHello
+    val sayHelloFunction: (String) -> Unit = ::sayHello
     sayHelloFunction("function as a variable")
 
     sayHelloProvider(martinProvider)
@@ -96,7 +96,7 @@ val square = { x: Int -> x * x }
 
 sealed class Result {
     object Success : Result()
-    class Failure(var message:String) : Result()
+    class Failure(var message: String) : Result()
 }
 
 fun evaluate(r: Result) = when (r) {

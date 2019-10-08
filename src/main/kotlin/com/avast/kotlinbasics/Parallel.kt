@@ -1,87 +1,109 @@
 package com.avast.kotlinbasics
 
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.async
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.*
 import org.slf4j.LoggerFactory
+import org.springframework.util.StopWatch
 import reactor.core.publisher.Flux
 import reactor.core.publisher.toFlux
 import reactor.core.scheduler.Schedulers
+import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.regex.Pattern
+import java.util.stream.IntStream
+import kotlin.streams.toList
 
 object Operation {
     private val logger = LoggerFactory.getLogger(Operation::class.java)
+    private val pattern = Pattern.compile("avast-cleanup-preauth-trial-\\d{1,2}\\w?-\\d{1,2}\\w|avast-cleanup-trial-\\d{1,2}\\w?-\\d{1,2}\\w|avast-cleanup-\\d{1,2}\\w?-\\d{1,2}\\w")
+    private const val patternExpression = "avast-cleanup-preauth-trial-\\d{1,2}\\w?-\\d{1,2}\\w|avast-cleanup-trial-\\d{1,2}\\w?-\\d{1,2}\\w|avast-cleanup-\\d{1,2}\\w?-\\d{1,2}\\w"
 
+    fun runPrecompiled(value: String): Boolean {
+        pattern.matcher(value).matches()
+//        logger.info("$value done")
+        return true
+    }
 
-    fun run(value: String): Boolean {
-        Thread.sleep(1000)
-        logger.info("$value done")
+    fun runWithCompilation(value: String): Boolean {
+        patternExpression.matches(Regex(value))
+//        logger.info("$value done")
         return true
     }
 }
 
+//val operation = Operation::runPrecompiled
+val operation = Operation::runWithCompilation
+
 object Sequential {
-
-    private val pattern = Pattern.compile(".*")
-    private val logger = LoggerFactory.getLogger(Sequential::class.java)
-
     fun run(data: Flux<String>): Flux<Boolean> {
-//        return data.map { pattern.matcher(it).matches() }
-        return data.map(Operation::run)
-//                .doOnNext { logger.info("Processing $it") }
+        return data.map(operation)
     }
 }
 
 object Parallel {
-
-    private val pattern = Pattern.compile(".*")
-    private val logger = LoggerFactory.getLogger(Parallel::class.java)
+    private const val parallelism = 2
 
     fun run(data: Flux<String>): Flux<Boolean> {
-        return data.parallel(20).runOn(Schedulers.elastic())
-                .map(Operation::run).sequential()
-//                .doOnNext { logger.info("Processing $it") }
-//                .map { pattern.matcher(it).matches() }.sequential()
+        return data.parallel(parallelism).runOn(Schedulers.parallel())
+                .map(operation).sequential()
+    }
+}
+
+object Suspend {
+    fun run(data: List<String>): List<Boolean> {
+        return runBlocking {
+            data.map {
+                GlobalScope.async {
+                    operation(it)
+                }
+            }.awaitAll()
+        }
+
+    }
+
+    fun run2(data: List<String>): Collection<Boolean> {
+        val lstOfReturnData = ConcurrentLinkedQueue<Boolean>()
+        runBlocking {
+            data.forEach {
+                launch {
+                    lstOfReturnData.add(operation(it))
+                }
+            }
+        }
+        return lstOfReturnData
     }
 }
 
 
 fun main() {
-    val data = Flux.range(0, 20).map { "hello $it" }.collectList().block()!!
+    val data = IntStream.range(0, 200000)
+            .mapToObj { "Avast Cleanup $it" }
+            .toList()
 
-    val parStart = System.currentTimeMillis()
-    Parallel.run(data.toFlux()).collectList().block();
-    val parEnd = System.currentTimeMillis()
+    val sw = StopWatch()
+    IntStream.range(0,3).forEach { i->
 
-    val seqStart = System.currentTimeMillis()
-    Sequential.run(data.toFlux()).collectList().block();
-    val seqEnd = System.currentTimeMillis()
+        println("sequential $i")
+        Sequential.run(data.toFlux())
+                .doOnSubscribe { sw.start("sequential $i") }
+                .doOnComplete { sw.stop() }
+                .collectList().block();
 
-    println("Sequential: ${seqEnd - seqStart} ms")
-    println("Parallel: ${parEnd - parStart} ms")
+        println("parallel $i")
+        Parallel.run(data.toFlux())
+                .doOnSubscribe { sw.start("parallel $i") }
+                .doOnComplete { sw.stop() }
+                .collectList().block();
 
-    val susStart = System.currentTimeMillis()
+        println("suspend 1 $i")
+        sw.start("suspend 1 $i")
+        Suspend.run(data)
+        sw.stop()
 
-    runBlocking {
-        println(Suspend.run(data).size)
+        println("suspend 2 $i")
+        sw.start("suspend 2 $i")
+        Suspend.run2(data)
+        sw.stop()
     }
-    val susEnd = System.currentTimeMillis()
-    println("Suspend: ${susEnd - susStart} ms")
+
+    println(sw.prettyPrint())
 }
 
-object Suspend {
-    private val logger = LoggerFactory.getLogger(Suspend::class.java)
-    private val pattern = Pattern.compile(".*")
-
-    suspend fun run(data: List<String>): List<Boolean> {
-
-        return data.map {
-            GlobalScope.async {
-
-//                logger.info("Processing $it")
-//                pattern.matcher(it).matches()
-                Operation.run(it)
-            }
-        }.map { it.await() }
-    }
-}

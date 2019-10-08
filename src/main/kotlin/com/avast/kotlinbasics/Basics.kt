@@ -35,6 +35,8 @@ fun main() {
     val map = mapOf(aaa)
     println(map)
 
+
+
     println(account == acc2.copy(email = "Martin"))
 
     println(account)
